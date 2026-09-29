@@ -70,7 +70,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:4px soli
 .timer.hurry .num{color:var(--bad);animation:pulse .5s infinite}
 .stage.has-timer .qtext,.stage.has-timer .qnum{padding-right:clamp(80px,10vw,140px)}
 .reveal{display:flex;flex-direction:column;gap:16px;align-items:flex-start}
-.reveal .stamp{font-size:clamp(2.6rem,6vw,5.6rem)}
+.reveal .stamp{font-size:clamp(2.4rem,5vw,4.8rem);margin:.15em 0 .3em .1em}
 .meme{font-family:var(--display);font-size:clamp(2rem,4.4vw,4.2rem);line-height:1.02;margin:0;text-wrap:balance;color:var(--ink)}
 .meme em{font-style:normal;color:var(--t1)}
 .explica{font-size:clamp(1.05rem,1.7vw,1.5rem);font-weight:700;max-width:60ch;margin:0;padding:12px 16px;border:3px dashed var(--ink);border-radius:14px;background:#FFF6C9}
@@ -149,6 +149,41 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:4px soli
 .vchip.v{background:var(--ok)} .vchip.f{background:var(--bad)}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:12px;font-weight:800;max-width:calc(100% - 32px)}
 .note{padding:14px 18px;background:var(--paper);border:3px solid var(--ink);border-radius:14px;font-weight:700}
+
+/* ---------- canto da TV (aparece só quando mexe o mouse) ---------- */
+.corner{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;flex-wrap:wrap;z-index:30;opacity:0;pointer-events:none;transition:opacity .3s}
+.corner.show,.corner:focus-within{opacity:1;pointer-events:auto}
+body:has(.tv){cursor:auto}
+/* ---------- painel do ADM ---------- */
+.role.adm{background:var(--paper);padding:14px;display:flex;flex-direction:column;gap:4px;align-items:center}
+.adm{max-width:1200px;width:100%;margin-inline:auto;display:flex;flex-direction:column;gap:16px}
+.adm-bar{background:var(--ink)}
+.adm-bar .display{font-size:clamp(1.8rem,5vw,2.6rem);-webkit-text-stroke:0;text-shadow:3px 3px 0 var(--t1)}
+.adm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px;align-items:start}
+.adm-card{padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.adm-card h3{margin:0;font-size:1.9rem}
+.adm-wide{grid-column:1/-1}
+.adm-q{display:flex;flex-direction:column;gap:10px;padding:12px;border:3px solid var(--ink);border-radius:14px;background:#FFF6C9}
+.adm-q p{margin:0;font-size:1.2rem;font-weight:900}
+.adm-meta{display:flex;justify-content:space-between;align-items:center;font-weight:900}
+.adm-meta .tlabel{font-size:1.5rem}
+.adm-hint{margin:0;font-weight:700;color:var(--muted)}
+.adm-teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.adm-team{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:3px solid var(--ink);border-radius:14px;font-weight:800}
+.adm-team.t1{background:var(--t1-soft)} .adm-team.t2{background:var(--t2-soft)}
+.adm-team b{font-family:var(--display);font-weight:400;font-size:1.4rem}
+.adm-team.t1 b{color:var(--t1)} .adm-team.t2 b{color:var(--t2)}
+.big-pct{font-family:var(--display);font-size:2.6rem;line-height:1;font-variant-numeric:tabular-nums}
+.adm-main{font-family:var(--display);font-weight:400;font-size:clamp(1.6rem,5vw,2.2rem);letter-spacing:.04em;padding:16px}
+.adm-opts{display:flex;flex-direction:column;gap:8px}
+.adm-opts label{display:flex;gap:8px;align-items:flex-start;font-weight:800}
+.adm-opts input{width:20px;height:20px;flex:none;margin-top:2px}
+.campo{font:inherit;font-weight:800;border:3px solid var(--ink);border-radius:12px;padding:12px;background:var(--paper);color:var(--ink);font-size:1.1rem}
+.tabela{overflow-x:auto;border:3px solid var(--ink);border-radius:12px}
+.tabela table{border-collapse:collapse;width:100%;min-width:520px;background:var(--paper)}
+.tabela th,.tabela td{padding:8px 10px;border-bottom:2px solid #E7E2D3;text-align:left;vertical-align:top}
+.tabela th{background:var(--ink);color:var(--paper);font-weight:900}
+.tabela td:first-child,.tabela td:nth-child(n+3){white-space:nowrap;font-variant-numeric:tabular-nums}
 </style>
 
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
@@ -174,21 +209,23 @@ let estado = null, perguntas = [], respostas = {}, carregado = { e: false, p: fa
 let papel = null;             // 'tv' | 't1' | 't2'
 let deadline = 0, rodadaVista = null, tick = null, suspense = false, revelando = false;
 let editorAberto = false, editandoId = null, confirmar = null, embaralhar = true;
-let fimRenderizado = null;
+let fimRenderizado = null, autoTimer = null, autoRodada = null, autoFim = 0, admLiberado = false;
+const AUTO_SEG = 8;   // segundos mostrando o resultado antes da próxima pergunta (modo automático)
+let ultE, ultP, ultR;
 let som = false, audio = null, ultimoBip = -1, ultimaFase = null;
 
 /* ---------- papel (qual tela é esta) ---------- */
-const HASH = { tv: 'tv', time1: 't1', time2: 't2' };
+const HASH = { tv: 'tv', time1: 't1', time2: 't2', adm: 'adm' };
 function lerPapel() {
   const h = location.hash.replace('#', '');
   if (HASH[h]) return HASH[h];
-  try { const s = localStorage.getItem('qsw-papel'); if (s && ['tv','t1','t2'].includes(s)) return s; } catch (e) {}
+  try { const s = localStorage.getItem('qsw-papel'); if (s && ['tv','t1','t2','adm'].includes(s)) return s; } catch (e) {}
   return null;
 }
 function escolher(p) {
   papel = p;
   try { localStorage.setItem('qsw-papel', p); } catch (e) {}
-  const back = { tv: 'tv', t1: 'time1', t2: 'time2' }[p];
+  const back = { tv: 'tv', t1: 'time1', t2: 'time2', adm: 'adm' }[p];
   history.replaceState(null, '', '#' + back);
   if (p === 'tv') pedirWakeLock();
   render();
@@ -221,14 +258,17 @@ const resp = t => estado && respostas[estado.rodada + '_' + t];
 function ok(r) { if (r.error) throw r.error; return r.data; }
 async function carregarEstado() {
   const d = ok(await db.from('estado').select('dados').eq('id', 1).maybeSingle());
+  const j = JSON.stringify(d && d.dados); if (j === ultE) return; ultE = j;
   estado = d && d.dados && d.dados.fase ? d.dados : null; carregado.e = true; aoMudarEstado();
 }
 async function carregarPerguntas() {
   const d = ok(await db.from('perguntas').select('*').order('ordem'));
+  const j = JSON.stringify(d); if (j === ultP) return; ultP = j;
   perguntas = d || []; carregado.p = true; render();
 }
 async function carregarRespostas() {
   const d = ok(await db.from('respostas').select('*'));
+  const j = JSON.stringify(d); if (j === ultR) return; ultR = j;
   const r = {}; (d || []).forEach(x => r[x.id] = x); respostas = r; aoMudarRespostas();
 }
 async function recarregarTudo() {
@@ -260,6 +300,7 @@ function aoMudarEstado() {
     iniciarTick();
   }
   if (f !== 'pergunta') { pararTick(); suspense = false; }
+  agendarAuto();
   if (papel === 'tv' && f !== ultimaFase) {
     if (f === 'resultado' && estado.res) {
       const r = estado.res;
@@ -278,6 +319,20 @@ function aoMudarRespostas() {
     return;
   }
   render();
+}
+
+function agendarAuto() {
+  const f = faseAtual();
+  const quer = papel === 'tv' && f === 'resultado' && estado && estado.auto;
+  if (!quer) { if (autoTimer) clearInterval(autoTimer); autoTimer = null; autoRodada = null; return; }
+  if (autoRodada === estado.rodada) return;
+  if (autoTimer) clearInterval(autoTimer);
+  autoRodada = estado.rodada; autoFim = Date.now() + AUTO_SEG * 1000;
+  autoTimer = setInterval(() => {
+    const s = Math.max(0, Math.ceil((autoFim - Date.now()) / 1000));
+    const el = $('#autoseg'); if (el) el.textContent = s;
+    if (s === 0 && faseAtual() === 'resultado' && estado.rodada === autoRodada) { clearInterval(autoTimer); autoTimer = null; proxima(); }
+  }, 250);
 }
 
 /* ---------- relógio ---------- */
@@ -321,12 +376,12 @@ async function salvarEstado(novo) {
   try { ok(await db.from('estado').upsert({ id: 1, dados: novo })); return true; } catch (e) { falha(e); return false; }
 }
 async function comecar() {
-  if (!perguntas.length) { toast('Cadastre pelo menos uma pergunta em ✏️ Perguntas.'); return; }
+  if (!perguntas.length) { toast('Cadastre pelo menos uma pergunta no Painel do ADM.'); return; }
   let ordem = perguntas.map(p => p.id);
   if (embaralhar) ordem = ordem.map(v => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
   await limparRespostas();
   pedirWakeLock();
-  await irPara({ fase: 'lobby', ordem, hist: [] }, 0);
+  await irPara({ fase: 'lobby', ordem, hist: [], auto: !!(estado && estado.auto) }, 0);
 }
 async function irPara(base, idx) {
   const p = perguntas.find(x => x.id === base.ordem[idx]);
@@ -350,12 +405,17 @@ async function revelar() {
   const gab = p ? !!p.resposta : null;
   const r = t => { const a = resp(t); if (!a) return 'sem'; return a.v === gab ? 'certo' : 'errado'; };
   const res = { t1: r('t1'), t2: r('t2') };
-  const ok = await salvarEstado({
+  const salvou = await salvarEstado({
     ...estado, fase: 'resultado', gabarito: gab, explicacao: p ? (p.explicacao || '') : '',
-    res, meme: escolherMeme(res), hist: [...hist(), { pid, t1: res.t1, t2: res.t2 }]
+    res, meme: escolherMeme(res),
+    hist: [...hist().filter(h => h.rodada !== estado.rodada), {
+      pid, rodada: estado.rodada, texto: estado.q ? estado.q.texto : '', gab,
+      t1: res.t1, t2: res.t2,
+      v1: resp('t1') ? resp('t1').v : null, v2: resp('t2') ? resp('t2').v : null
+    }]
   });
   revelando = false;
-  if (!ok) { suspense = false; render(); }
+  if (!salvou) { suspense = false; render(); }
 }
 async function limparRespostas() {
   try { ok(await db.from('respostas').delete().neq('id', '')); } catch (e) { falha(e); }
@@ -363,15 +423,23 @@ async function limparRespostas() {
 async function reiniciar() {
   if (confirmar !== 'reiniciar') { confirmar = 'reiniciar'; render(); setTimeout(() => { if (confirmar === 'reiniciar') { confirmar = null; render(); } }, 4000); return; }
   confirmar = null;
-  await salvarEstado({ fase: 'lobby', ordem: [], hist: [] });
+  await salvarEstado({ fase: 'lobby', ordem: [], hist: [], auto: !!(estado && estado.auto) });
   await limparRespostas();
 }
 function acaoPrincipal() {
   const f = faseAtual();
   if (f === 'lobby') comecar();
-  else if (f === 'pergunta') { if (!suspense) { suspense = true; render(); setTimeout(revelar, 900); } }
+  else if (f === 'pergunta') {
+    if (papel === 'adm') revelar();
+    else if (!suspense) { suspense = true; render(); setTimeout(revelar, 900); }
+  }
   else if (f === 'resultado') proxima();
   else if (f === 'fim') reiniciar();
+}
+
+async function alternarAuto(v) {
+  if (!estado) { await salvarEstado({ fase: 'lobby', ordem: [], hist: [], auto: v }); return; }
+  await salvarEstado({ ...estado, auto: v });
 }
 
 /* ---------- ações dos times ---------- */
@@ -397,7 +465,7 @@ async function salvarPergunta() {
       ok(await db.from('perguntas').insert({ ...dados, ordem }));
     }
     await carregarPerguntas();
-    editandoId = null; toast('Pergunta salva ✅'); render();
+    editandoId = null; manterForm = false; toast('Pergunta salva ✅'); render();
   } catch (e) { falha(e); }
 }
 async function apagarPergunta(id) {
@@ -453,10 +521,21 @@ function confete(ms) {
 
 /* ---------- telas ---------- */
 function render() {
-  if (!papel) return renderEscolha();
-  if (papel === 'tv') return renderTV();
-  return renderTime(papel);
+  const campos = {};
+  document.querySelectorAll('#app input[id], #app textarea[id]').forEach(el => campos[el.id] = el.type === 'radio' || el.type === 'checkbox' ? { c: el.checked } : { v: el.value });
+  const foco = document.activeElement && document.activeElement.id;
+  const sel = foco && document.activeElement.selectionStart != null ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
+  if (!papel) renderEscolha();
+  else if (papel === 'tv') renderTV();
+  else if (papel === 'adm') renderAdm();
+  else renderTime(papel);
+  if (manterForm) {
+    Object.entries(campos).forEach(([id, x]) => { const el = document.getElementById(id); if (!el || el.dataset.fixo) return; if ('c' in x) el.checked = x.c; else el.value = x.v; });
+  }
+  manterForm = true;
+  if (foco) { const el = document.getElementById(foco); if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) {} } }
 }
+let manterForm = true;
 
 function avisoConexao() {
   if (semConfig) return `<div class="note">⚙️ Falta configurar o banco: preencha o arquivo <b>config.js</b> com a URL e a chave anon do Supabase (passo a passo no README).</div>`;
@@ -475,6 +554,7 @@ function renderEscolha() {
       <button class="btn role t1" data-p="t1"><span class="big">🩷</span><span class="display">Time 1</span><small>PC onde o Time 1 responde</small></button>
       <button class="btn role t2" data-p="t2"><span class="big">💜</span><span class="display">Time 2</span><small>PC onde o Time 2 responde</small></button>
     </div>
+    <button class="btn role adm" data-p="adm"><span class="display" style="font-size:1.6rem">⚙️ Painel do ADM</span><small>Controle do jogo e perguntas (celular ou outro PC)</small></button>
     ${avisoConexao()}
   </div>`;
   app.querySelectorAll('[data-p]').forEach(b => b.onclick = () => escolher(b.dataset.p));
@@ -516,6 +596,7 @@ function renderTV() {
         <li>O resultado só aparece quando os dois responderem (ou o tempo acabar).</li>
         <li>O placar é em <b>% de acerto do time</b>. Aqui ninguém fica exposto, todo mundo aprende junto 🤝</li>
       </ol>
+      <span class="chip">🎮 O apresentador comanda pelo celular</span>
       <span class="chip">📋 ${perguntas.length} pergunta${perguntas.length === 1 ? '' : 's'} cadastrada${perguntas.length === 1 ? '' : 's'}</span>
     </div>`;
     crowd = `<span class="display">📣 PLATEIA:</span> vocês também jogam! Gritem o palpite antes do resultado sair.`;
@@ -550,7 +631,7 @@ function renderTV() {
     crowd = `<span class="display">📣 PLATEIA:</span> SALVA DE PALMAS PROS DOIS TIMES! 👏👏👏`;
   }
 
-  const principal = { lobby: '▶ Começar jogo', pergunta: '⏭ Revelar agora', resultado: estado && estado.idx + 1 >= total ? '🏁 Ver resultado final' : '▶ Próxima pergunta', fim: '🔁 Jogar de novo' }[f];
+  if (f === 'resultado' && estado.auto) crowd += ` <span class="chip" style="margin-left:auto">⏭ Próxima em <b id="autoseg">${AUTO_SEG}</b>s</span>`;
   app.innerHTML = `
   <div class="tv">
     <div class="tv-head">
@@ -565,52 +646,142 @@ function renderTV() {
       <div class="board">${cardTime('t1')}${cardTime('t2')}</div>
     </div>
     <div class="panel crowd">${crowd}</div>
-    <div class="controls">
-      <button class="btn small" id="b-troca">↩ Trocar tela</button>
-      <span class="spacer"></span>
-      ${f === 'lobby' ? `<label><input type="checkbox" id="c-emb" ${embaralhar ? 'checked' : ''}> Embaralhar perguntas</label>` : ''}
-      <button class="btn small" id="b-ed">✏️ Perguntas (${perguntas.length})</button>
-      <button class="btn small" id="b-som">${som ? '🔊 Som ligado' : '🔈 Ligar som'}</button>
-      <button class="btn small" id="b-fs">⛶ Tela cheia</button>
-      <button class="btn small" id="b-re">${confirmar === 'reiniciar' ? 'Certeza? Clique de novo' : '🧹 Reiniciar'}</button>
-      <button class="btn sun" id="b-main" ${!db || (f === 'pergunta' && suspense) ? 'disabled' : ''}>${principal}</button>
-    </div>
   </div>
-  ${editorAberto ? renderEditor() : ''}`;
-
+  <div class="corner ${cantoVisivel ? 'show' : ''}" id="corner">
+    <button class="btn small" id="b-som">${som ? '🔊 Som ligado' : '🔈 Ligar som'}</button>
+    <button class="btn small" id="b-fs">⛶ Tela cheia</button>
+    <button class="btn small" id="b-troca">↩ Trocar tela</button>
+  </div>`;
   $('#b-troca').onclick = trocarTela;
-  $('#b-ed').onclick = () => { editorAberto = true; editandoId = null; render(); };
   $('#b-som').onclick = ligarSom;
   $('#b-fs').onclick = telaCheia;
-  $('#b-re').onclick = reiniciar;
+  if (f === 'pergunta') atualizarTimer(Math.max(0, deadline - Date.now()));
+  if (f === 'resultado' && estado.auto) { const el = $('#autoseg'); if (el) el.textContent = Math.max(0, Math.ceil((autoFim - Date.now()) / 1000)); }
+}
+let cantoVisivel = false, cantoT = null;
+addEventListener('mousemove', () => {
+  if (papel !== 'tv') return;
+  if (!cantoVisivel) { cantoVisivel = true; const c = $('#corner'); if (c) c.classList.add('show'); }
+  clearTimeout(cantoT);
+  cantoT = setTimeout(() => { cantoVisivel = false; const c = $('#corner'); if (c) c.classList.remove('show'); }, 2500);
+});
+
+/* ---------- painel do ADM ---------- */
+function senhaAdm() { return ((window.JOGO_CONFIG || {}).ADM_SENHA || '').trim(); }
+function checarLiberado() {
+  if (!senhaAdm()) return true;
+  if (admLiberado) return true;
+  try { if (sessionStorage.getItem('qsw-adm') === senhaAdm()) return (admLiberado = true); } catch (e) {}
+  return false;
+}
+function renderAdm() {
+  if (!checarLiberado()) {
+    app.innerHTML = `
+    <div class="chooser panel" style="max-width:460px">
+      <h1 class="display" style="font-size:2.6rem">⚙️ PAINEL DO ADM</h1>
+      <p>Digite a senha do apresentador.</p>
+      <form id="f-senha" style="display:flex;flex-direction:column;gap:12px">
+        <input type="password" id="adm-senha" class="campo" autocomplete="current-password" placeholder="Senha">
+        <button class="btn sun" type="submit">Entrar</button>
+      </form>
+      <button class="btn small" id="b-troca">↩ Trocar tela</button>
+    </div>`;
+    $('#f-senha').onsubmit = e => {
+      e.preventDefault();
+      if ($('#adm-senha').value.trim() === senhaAdm()) {
+        admLiberado = true; try { sessionStorage.setItem('qsw-adm', senhaAdm()); } catch (er) {}
+        manterForm = false; render();
+      } else toast('Senha errada. Tente de novo.');
+    };
+    $('#b-troca').onclick = trocarTela;
+    return;
+  }
+  const f = faseAtual();
+  const total = (estado && estado.ordem && estado.ordem.length) || perguntas.length;
+  const n = estado && estado.idx != null ? estado.idx + 1 : 0;
+  const pAtual = estado && estado.ordem ? perguntas.find(x => x.id === estado.ordem[estado.idx]) : null;
+  const nomeFase = { lobby: '⏸ Aguardando início', pergunta: '⏱ Pergunta no ar', resultado: '📣 Mostrando resultado', fim: '🏁 Jogo encerrado' }[f];
+  const principal = { lobby: '▶ COMEÇAR JOGO', pergunta: '⏭ REVELAR AGORA', resultado: estado && estado.idx + 1 >= total ? '🏁 VER RESULTADO FINAL' : '▶ PRÓXIMA PERGUNTA', fim: '🔁 JOGAR DE NOVO' }[f];
+  const stTime = t => {
+    if (f === 'pergunta') { const r = resp(t); return r ? `🔒 ${r.v ? 'Verdadeiro' : 'Falso'}` : '🤔 Pensando…'; }
+    if (f === 'resultado' && estado.res) return { certo: '✅ Acertou', errado: '❌ Errou', sem: '⏰ Sem resposta' }[estado.res[t]];
+    return '—';
+  };
+  const vf = v => v === true ? 'V' : v === false ? 'F' : '—';
+  const marca = r => ({ certo: '✅', errado: '❌', sem: '⏰' }[r] || '');
+  const h = hist();
+
+  app.innerHTML = `
+  <div class="adm">
+    <div class="panel team-bar adm-bar">
+      <span class="display">⚙️ PAINEL DO ADM</span>
+      <span class="chip">${nomeFase}</span>
+    </div>
+    ${avisoConexao()}
+    <div class="adm-grid">
+      <section class="panel adm-card">
+        <h3 class="display">AGORA NA TV</h3>
+        ${f === 'pergunta' || f === 'resultado' ? `
+          <div class="adm-q">
+            <div class="adm-meta"><span>Pergunta ${n} de ${total}</span>${f === 'pergunta' ? `<span class="tlabel" id="tlab">${TEMPO}s</span>` : ''}</div>
+            ${f === 'pergunta' ? `<div class="tbar"><i id="tbar" style="width:100%"></i></div>` : ''}
+            <p>${esc(estado.q && estado.q.texto)}</p>
+            <span class="chip">Gabarito: <b>${pAtual ? (pAtual.resposta ? '✔ VERDADEIRO' : '✘ FALSO') : '?'}</b></span>
+          </div>` : `<p class="adm-hint">${f === 'lobby' ? `${perguntas.length} pergunta${perguntas.length === 1 ? '' : 's'} pronta${perguntas.length === 1 ? '' : 's'}. Quando os times estiverem nos PCs, clique em Começar.` : 'Jogo encerrado. O placar final está na TV.'}</p>`}
+        <div class="adm-teams">
+          <div class="adm-team t1"><b>Time 1</b><span class="big-pct">${pct('t1')}%</span><span>${stTime('t1')}</span></div>
+          <div class="adm-team t2"><b>Time 2</b><span class="big-pct">${pct('t2')}%</span><span>${stTime('t2')}</span></div>
+        </div>
+        <button class="btn sun adm-main" id="b-main" ${!db || revelando ? 'disabled' : ''}>${principal}</button>
+        <div class="adm-opts">
+          <label for="c-auto"><input type="checkbox" id="c-auto" data-fixo="1" ${estado && estado.auto ? 'checked' : ''}> Modo automático: próxima pergunta sozinha ${AUTO_SEG}s depois do resultado</label>
+          ${f === 'lobby' ? `<label for="c-emb"><input type="checkbox" id="c-emb" data-fixo="1" ${embaralhar ? 'checked' : ''}> Embaralhar perguntas</label>` : ''}
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn small" id="b-re">${confirmar === 'reiniciar' ? 'Certeza? Clique de novo' : '🧹 Reiniciar placar'}</button>
+          <button class="btn small" id="b-troca">↩ Trocar tela</button>
+        </div>
+      </section>
+
+      <section class="panel adm-card">
+        <h3 class="display">✏️ PERGUNTAS (${perguntas.length})</h3>
+        ${editorHtml()}
+      </section>
+
+      <section class="panel adm-card adm-wide">
+        <h3 class="display">📊 HISTÓRICO DA PARTIDA</h3>
+        ${h.length ? `<div class="tabela"><table>
+          <thead><tr><th>#</th><th>Pergunta</th><th>Gabarito</th><th>Time 1</th><th>Time 2</th></tr></thead>
+          <tbody>${h.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.texto || '')}</td><td>${vf(x.gab)}</td><td>${marca(x.t1)} ${vf(x.v1)}</td><td>${marca(x.t2)} ${vf(x.v2)}</td></tr>`).join('')}</tbody>
+        </table></div>
+        <p class="adm-hint">Use isto para ver quais processos precisam de reforço. Só aparece aqui, nunca na TV.</p>` : `<p class="adm-hint">As rodadas aparecem aqui conforme o jogo anda, com o que cada time respondeu.</p>`}
+      </section>
+    </div>
+  </div>`;
+
   $('#b-main').onclick = acaoPrincipal;
+  $('#b-re').onclick = reiniciar;
+  $('#b-troca').onclick = trocarTela;
+  $('#c-auto').onchange = e => alternarAuto(e.target.checked);
   const emb = $('#c-emb'); if (emb) emb.onchange = () => { embaralhar = emb.checked; };
-  if (editorAberto) ligarEditor();
+  ligarEditor();
   if (f === 'pergunta') atualizarTimer(Math.max(0, deadline - Date.now()));
 }
 
-function renderEditor() {
+function editorHtml() {
   const p = editandoId ? perguntas.find(x => x.id === editandoId) : null;
   return `
-  <div class="modal" id="modal">
-    <div class="panel editor" role="dialog" aria-label="Perguntas do jogo">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-        <h3 class="display">✏️ PERGUNTAS DO JOGO</h3>
-        <button class="btn small" id="e-fechar">Fechar</button>
-      </div>
       <div class="form">
-        <label for="f-texto">${p ? 'Editando a afirmação' : 'Nova afirmação (os times vão dizer se é verdadeira ou falsa)'}
+        <label for="f-texto">${p ? 'Editando a afirmação' : 'Nova afirmação (os times dizem se é verdadeira ou falsa)'}
           <textarea id="f-texto" rows="2" placeholder="Ex.: Se a tela não ficar verde, posso entregar o pacote e avisar depois.">${esc(p ? p.texto : '')}</textarea></label>
         <div class="vf">
           <label for="f-v"><input type="radio" name="vf" id="f-v" ${p && p.resposta ? 'checked' : ''}> ✔ Verdadeira</label>
           <label for="f-f"><input type="radio" name="vf" id="f-f" ${p && !p.resposta ? 'checked' : ''}> ✘ Falsa</label>
         </div>
-        <div class="row2">
-          <label for="f-exp">Explicação que aparece na TV depois da resposta
-            <input type="text" id="f-exp" value="${esc(p ? p.explicacao : '')}" placeholder="O que a WI diz sobre isso"></label>
-          <label for="f-wi">WI de referência
-            <input type="text" id="f-wi" value="${esc(p ? p.wi : '')}" placeholder="Ex.: WI SVC-217-76"></label>
-        </div>
+        <label for="f-exp">Explicação que aparece na TV depois da resposta
+          <input type="text" id="f-exp" value="${esc(p ? p.explicacao : '')}" placeholder="O que a WI diz sobre isso"></label>
+        <label for="f-wi">WI de referência
+          <input type="text" id="f-wi" value="${esc(p ? p.wi : '')}" placeholder="Ex.: WI SVC-217-76"></label>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn sun small" id="e-salvar">${p ? '💾 Salvar alteração' : '➕ Adicionar pergunta'}</button>
           ${p ? `<button class="btn small" id="e-cancelar">Cancelar edição</button>` : ''}
@@ -626,17 +797,13 @@ function renderEditor() {
               <button class="btn small" data-del="${q.id}">${confirmar === 'del-' + q.id ? 'Certeza?' : 'Excluir'}</button>
             </div>
           </div>`).join('') : `<div class="note">Nenhuma pergunta ainda. Escreva a primeira afirmação acima e marque se é verdadeira ou falsa.</div>`}
-      </div>
-    </div>
-  </div>`;
+      </div>`;
 }
 function ligarEditor() {
-  $('#e-fechar').onclick = () => { editorAberto = false; editandoId = null; render(); };
   $('#e-salvar').onclick = salvarPergunta;
-  const c = $('#e-cancelar'); if (c) c.onclick = () => { editandoId = null; render(); };
-  document.querySelectorAll('[data-ed]').forEach(b => b.onclick = () => { editandoId = b.dataset.ed; render(); $('#f-texto').focus(); });
+  const c = $('#e-cancelar'); if (c) c.onclick = () => { editandoId = null; manterForm = false; render(); };
+  document.querySelectorAll('[data-ed]').forEach(b => b.onclick = () => { editandoId = b.dataset.ed; manterForm = false; render(); $('#f-texto').focus(); });
   document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => apagarPergunta(b.dataset.del));
-  $('#modal').onclick = e => { if (e.target.id === 'modal') { editorAberto = false; render(); } };
 }
 
 function renderTime(t) {
@@ -688,7 +855,7 @@ function renderTime(t) {
 }
 
 document.addEventListener('keydown', e => {
-  if (papel !== 'tv' || editorAberto) return;
+  if (papel !== 'tv') return;
   if (e.target.closest('input,textarea,button')) return;
   if (e.code === 'Space' || e.code === 'ArrowRight') { e.preventDefault(); acaoPrincipal(); }
 });
