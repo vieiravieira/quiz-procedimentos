@@ -6,5 +6,5 @@ window.JOGO_CONFIG = {
       SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxdGt0anhvdmhxeHBvb2dyYXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2NTc1MTEsImV4cCI6MjEwNjIzMzUxMX0.lIFH9vzwDjV89D7s_ztrMW1BiAFjXELD2fTCn-kbtxE'
 
   // Senha do Painel do ADM (deixe '' para não pedir senha)
-  ADM_SENHA: 'wi2026'
+  ADM_SENHA: 'DHL2026'
 };
